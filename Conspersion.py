@@ -4,6 +4,27 @@ import os
 import sys
 import pexpect
 import subprocess
+import time
+import logging
+
+start_time = time.time()
+details = open("Details.log","w")
+
+logger = logging.getLogger('info_logger')
+logger.setLevel(logging.DEBUG)
+#Create file handler which logs even debug messages
+fh = logging.FileHandler('Info.log', 'w')
+fh.setLevel(logging.DEBUG)
+#Create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+#Create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+#Add the handlers to logger
+logger.addHandler(ch)
+logger.addHandler(fh)
 
 #Switch username
 switch_un = "admin"
@@ -14,7 +35,7 @@ switch_pw = "password"
 def http_secure_server(ip):
 	try:
 		child = pexpect.spawn('ssh -o StrictHostKeyChecking=no %s@%s' % (switch_un, ip))
-		child.logfile = sys.stdout
+		child.logfile = details
 		child.timeout = 60
 		i = child.expect(['Password:',pexpect.TIMEOUT,pexpect.EOF,'Connection refused','Connection timed out','Connection refused by server'],timeout=120)
 		if i == 0:
@@ -30,33 +51,43 @@ def http_secure_server(ip):
 			#child.expect('[OK]')
 			#child.expect('#')
 			child.sendline('quit')
+			logger.info( '%s has been sucessfully configured', ip)
+			print( '%s has been sucessfully configured -o_0-' % ip)
 			sys.exit
 		elif i == 1:
-			print ('Timeout')
+			logger.info('%s : Timeout', ip)
+			print('%s : Timeout'% ip)
 			sys.exit
 		elif i == 2:
-			print ('Reached EOF')
+			logger.info('%s : Reached EOF', ip)
+			print('%s : Reached EOF'% ip)
 			sys.exit         		
 		elif i == 3:
-			print ('Connection refused')
+			logger.info('%s : Connection refused', ip)
+			print('%s : Connection refused'% ip)
 			sys.exit
 		elif i == 4:
-			print ('Connection timed out')
+			logger.info('%s : Connection Timed Out', ip)
+			print('%s : Connection Timed Out'% ip)
 			sys.exit
 		elif i == 5:
-			print ('Connection refused by server')
+			logger.info('%s : Connection refused by server', ip)
+			print('%s : Connection refused by server' % ip)
 			sys.exit
 	except:
 		raise
 		
 #For loop that will loop through switches in a specific range with the function http_secure_server	
 with open(os.devnull, "wb") as limbo:
-        for n in xrange(7, 15):
-                ip="10.23.30.{0}".format(n)
+        for n in xrange(7, 25):
+                ip="10.23.192.{0}".format(n)
                 result=subprocess.Popen(["ping", "-c", "1", "-n", "-W", "2", ip],
                         stdout=limbo, stderr=limbo).wait()
                 if result:
-                        print ip, "inactive"
+                        logger.info( '%s is not an active switch, skipping', ip)
+                        print( '%s is not an active switch, skipping -X_X-' % ip)
                 else:
                         http_secure_server(ip)
-		
+                        
+details.close()
+print("--- %s seconds ---" % str(time.time() - start_time))
