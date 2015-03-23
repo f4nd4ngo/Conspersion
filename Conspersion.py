@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Vincent Boucher 2015-01-07- Python  
 Script to connect to multiple switches, add a specific command and logout."""
 import os
@@ -6,6 +7,9 @@ import pexpect
 import subprocess
 import time
 import logging
+
+device_list = open('device_list.txt', 'r')
+count_lines = 0
 
 start_time = time.time()
 details = open("Details.log","w")
@@ -27,12 +31,12 @@ logger.addHandler(ch)
 logger.addHandler(fh)
 
 #Switch username
-switch_un = "admin"
+switch_un = "username"
 #Switch password
 switch_pw = "password"
 	
 #Function that will be called to send commands to the switch
-def http_secure_server(ip):
+def main(ip):
 	try:
 		child = pexpect.spawn('ssh -o StrictHostKeyChecking=no %s@%s' % (switch_un, ip))
 		child.logfile = details
@@ -41,16 +45,22 @@ def http_secure_server(ip):
 		if i == 0:
 			child.sendline(switch_pw)
 			child.expect('#')
-			#child.sendline('conf t')
-			#child.expect('\(config\)#')
-			#child.sendline('ip http secure-server')
-			#child.expect('#')
+			child.sendline('conf t')
+			child.expect('\(config\)#') 
+			with open('commands.txt', 'r') as commands:
+				for items in commands:
+					end = str('exit1')
+					if 'exit1' in items:
+						break
+					else:
+						child.sendline(items)
+						child.expect('#')
 			child.sendline('end')
 			child.expect('#')
-			#child.sendline('wr mem')
-			#child.expect('[OK]')
-			#child.expect('#')
-			child.sendline('quit')
+			child.sendline('wr mem')
+			child.expect('[OK]')
+			child.expect('#')
+			child.sendline('quit')			
 			logger.info( '%s has been sucessfully configured', ip)
 			print( '%s has been sucessfully configured -o_0-' % ip)
 			sys.exit
@@ -76,18 +86,31 @@ def http_secure_server(ip):
 			sys.exit
 	except:
 		raise
+
 		
-#For loop that will loop through switches in a specific range with the function http_secure_server	
 with open(os.devnull, "wb") as limbo:
-        for n in xrange(7, 25):
-                ip="10.23.192.{0}".format(n)
-                result=subprocess.Popen(["ping", "-c", "1", "-n", "-W", "2", ip],
-                        stdout=limbo, stderr=limbo).wait()
-                if result:
-                        logger.info( '%s is not an active switch, skipping', ip)
-                        print( '%s is not an active switch, skipping -X_X-' % ip)
-                else:
-                        http_secure_server(ip)
-                        
+        for ip in device_list:
+			result=subprocess.Popen(["ping", "-c", "1", "-n", "-W", "2", ip],
+					stdout=limbo, stderr=limbo).wait()
+			if result:
+					logger.info( '%s is not an active switch, skipping', ip)
+					print( '%s is not an active switch, skipping -X_X-' % ip)
+			else:
+					main(ip)
+						
+#For loop that will loop through switches in a specific range	
+#with open(os.devnull, "wb") as limbo:
+        #for n in xrange(3, 20):
+                #ip="10.23.192.{0}".format(n)
+                #result=subprocess.Popen(["ping", "-c", "1", "-n", "-W", "2", ip],
+                        #stdout=limbo, stderr=limbo).wait()
+                #if result:
+                        #logger.info( '%s is not an active switch, skipping', ip)
+                        #print( '%s is not an active switch, skipping -X_X-' % ip)
+                #else:
+                        #http_secure_server(ip)
+
+
+device_list.close()						
 details.close()
 print("--- %s seconds ---" % str(time.time() - start_time))
